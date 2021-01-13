@@ -12,10 +12,10 @@ edges = [(1, 2), (1, 3), (3, 4), (4, 5), (4, 8),
          (2, 7), (2, 6), (3, 6)]
 G.add_edges_from(edges)  # add all edges
 
-links = [(4, 2), (4, 3)]  # requests to provision
+links = [(4, 2), (4, 7)]  # requests to provision
 total_requests = len(links)
 
-fails = [[(1, 3), (1, 2)], [(6, 3)]]  # list of failures  list of lists
+fails = [[(1, 3), (3, 6)], [(1, 2)]]  # list of failures  list of lists
 failures = []
 # sort failure tuple
 for failure in fails:
@@ -52,7 +52,7 @@ request_id = 1
 
 # iterate through all the links and paths
 for key, values in paths.items():
-    results['nodes'].append(key)
+    results['nodes'].append(sorted(key))
     index = 0
 
     # compute primary path and associated wavelength
@@ -88,7 +88,11 @@ for key, values in paths.items():
 
     request_id += 1
 print(f"Primary paths are: {results['primary_path']}")
-print("######################################################")
+print(f"Wavelengths are: {results['wavelength']}")
+print()
+print("######################################################\n")
+
+
 # compute backup path
 for id, (key, values) in enumerate(paths.items()):
     node = results['nodes'][id]  # do we need?
@@ -96,27 +100,42 @@ for id, (key, values) in enumerate(paths.items()):
     # 1. check if failure is on primary path:
     for failure in failures:
         lp = results['primary_path'][id]
+
         lp_pairs = {tuple(sorted((lp[i], lp[i + 1]))) for i in range(len(lp) - 1)}  # create pairs
         fail_nodes = lp_pairs.intersection(set(failure))
-        print(f"failure: {sorted(failure)}")
-        print(f"primary path tuple pairs:{lp_pairs}")
-        print(f"failure nodes: {fail_nodes}")
-        # 2. if failure exists, remove the paths containing failures
-        # 3. keep the very first path even with overlaping path with other primary path with diff. wavelength as a backup.
-        # 4. remove all the primary paths from the remaining set of paths
-        # 5. also remove the preassigned previous backup paths [with same failure],
-        # 6. if still a path exists, assign it the wavelength(it will ensure sharing)
         if len(fail_nodes) > 0:
-            print(f"type of values: {type(values)} and values are: {values}")
-            vals = values[:]
-            vals.remove(lp)  # remove primary path
-            print(f"av_paths: {vals}")
-            if len(failure_dic) == 0:
-                failure_dic[1] = {list(fail_nodes)[0]: {'backup': [vals[0]],
-                                         'wavelength': [1]}}
-            print(failure_dic)
-        else:
-            print("no failures")
-    print("-------------------------------------------------------------")
+            value = values[:]
+            value.remove(lp)
+            next_path = []
+            if value:
+                flag = True
+                temp = {}
+                for val in value:
+                    lp_pairs = {tuple(sorted((val[i], val[i + 1]))) for i in range(len(val) - 1)}  # create pairs
+                    fn = lp_pairs.intersection(fail_nodes)  # checks if new alternative doesn't contain failure
+                    # print(f"New alternative pair: {lp_pairs}")
+                    if len(fn) == 0:
+                        next_path = val
+                        lightpaths = results['primary_path'][:]
+                        lightpaths.remove(lp)
+                        for each_path in lightpaths:
+                            l_pair = {tuple(sorted((each_path[i], each_path[i + 1]))) for i in range(len(each_path) - 1)}  # create pairs
+                            fn1 = l_pair.intersection(lp_pairs)
+                            # if unique path is found, assign immediate wavelength
+                            if len(fn1) == 0:
+                                failure_dic[tuple(fail_nodes)] = {'path':tuple(key),'backup':val, 'wavelength':1}
+                                break
 
+                            # else assign different wavelength
+                            else:
+                                if flag:
+                                    nd = results.get('wavelength')[(results.get('nodes').index([each_path[0], each_path[-1]]))]
+                                    if nd < total_wavelength:
+                                        temp = {'path':tuple(key),'backup': val, 'wavelength': nd+1}
+                                        flag = False
+                if temp:
+                    failure_dic[tuple(fail_nodes)] = temp
+                    temp = {}
+
+print(failure_dic)
 print(results)
