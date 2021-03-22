@@ -14,5 +14,8 @@ install all the packages listed in requirement.txt file as<br>
 Once all the packages are installed, run the file as, <br>
 <pre><em> python3 implementation.py</em></pre><br>
 
+Graph for this problem is shown below:<br>
+![Screenshot](outputs/network.png)<br><br>
+
 It will generate the output as shown below:
 ![Screenshot](outputs/output.png)
